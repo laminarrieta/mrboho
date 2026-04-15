@@ -1,0 +1,49 @@
+name: Descargar imágenes MR.BOHO
+
+# ─── Cuándo se ejecuta ────────────────────────────────────────────────────────
+on:
+  # Ejecución manual desde GitHub → Actions → "Run workflow"
+  workflow_dispatch:
+
+  # También puedes activar ejecución automática descomentando esto:
+  # schedule:
+  #   - cron: '0 8 * * 1'   # cada lunes a las 8:00 UTC
+
+# ─── Permisos ─────────────────────────────────────────────────────────────────
+permissions:
+  contents: read
+
+jobs:
+  download:
+    name: Descargar imágenes de productos
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Descarga el código del repositorio
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      # 2. Configura Python
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Instala dependencias (solo requests, que viene en la stdlib pero
+      #    lo instalamos por si acaso el entorno no lo tiene)
+      - name: Instalar dependencias
+        run: pip install requests
+
+      # 4. Ejecuta el script de descarga
+      - name: Descargar imágenes
+        run: python download_images.py
+
+      # 5. Sube las imágenes como artefacto descargable desde GitHub
+      #    (disponible durante 90 días por defecto)
+      - name: Subir imágenes como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagenes-gafas-de-sol
+          path: imagenes_productos/
+          retention-days: 90
+          if-no-files-found: error
