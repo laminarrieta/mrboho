@@ -2,7 +2,7 @@
 MR.BOHO - Descargador de imágenes de productos
 ==============================================
 Descarga todas las imágenes de la colección "gafas-de-sol" de mrboho.com
-usando la API JSON pública de Shopify.
+usando la API JSON pública de Shopify. Recorre todas las páginas de la colección.
 
 Nombre de archivo: {nombre_producto}_{numero}.ext
 Ejemplo: TREAT - FRELARD_1.png, TREAT - FRELARD_2.png
@@ -40,18 +40,37 @@ def get_extension(url: str) -> str:
     return ext if ext in (".jpg", ".jpeg", ".png", ".webp", ".gif") else ".jpg"
 
 
-def fetch_products() -> list:
-    """Obtiene todos los productos de la primera página vía la API JSON de Shopify."""
-    url = f"{BASE_URL}/collections/{COLLECTION}/products.json"
-    params = {"limit": LIMIT}
+def fetch_all_products() -> list:
+    """
+    Obtiene todos los productos de todas las páginas vía la API JSON de Shopify.
+    Shopify permite un máximo de 250 productos por página; se itera con el
+    parámetro `page` hasta recibir una página vacía.
+    """
+    url      = f"{BASE_URL}/collections/{COLLECTION}/products.json"
+    all_products = []
+    page     = 1
 
-    print(f"📡 Consultando API: {url}")
-    response = requests.get(url, params=params, timeout=TIMEOUT_SEC)
-    response.raise_for_status()
+    while True:
+        params = {"limit": LIMIT, "page": page}
+        print(f"📡 Consultando página {page}…  ({url})")
+        response = requests.get(url, params=params, timeout=TIMEOUT_SEC)
+        response.raise_for_status()
 
-    products = response.json().get("products", [])
-    print(f"✅ {len(products)} productos encontrados.\n")
-    return products
+        products = response.json().get("products", [])
+        if not products:
+            break  # no hay más páginas
+
+        all_products.extend(products)
+        print(f"   → {len(products)} productos en página {page}  (total hasta ahora: {len(all_products)})")
+
+        if len(products) < LIMIT:
+            break  # última página (incompleta)
+
+        page += 1
+        time.sleep(0.5)  # pausa entre páginas para no sobrecargar el servidor
+
+    print(f"\n✅ {len(all_products)} productos encontrados en total.\n")
+    return all_products
 
 
 def download_image(url: str, dest_path: Path) -> bool:
@@ -71,7 +90,7 @@ def download_image(url: str, dest_path: Path) -> bool:
 
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    products = fetch_products()
+    products = fetch_all_products()
 
     total_images = 0
     failed_images = 0
